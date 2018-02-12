@@ -75,7 +75,14 @@ Template.ruleAgendaVote.helpers({
 Template.ruleAgendaVote.events({
   'submit .form-vote'(event) {
     event.preventDefault();
-
+    function submitVote(model) {
+      Meteor.customCall('voteAgenda', model, function(error) {
+        if (! error) {
+          const path = FlowRouter.path('ruleAgendaDetail', { agendaId });
+          FlowRouter.go(path);
+        }
+      });
+    }
     const agendaId = FlowRouter.getParam('agendaId');
     const voteOptions = [];
     $('input:checked').each(function() {
@@ -83,66 +90,40 @@ Template.ruleAgendaVote.events({
       voteOptions.push(optionId);
     });
 
-    const issueNames = [];
-    if ($('input').length > 0)
-      issueNames.push($('input')[0].name);
-    $('input').each(function() {
-      if ($(this).attr('name') !== issueNames[issueNames.length - 1])
-        issueNames.push($(this).attr('name'));
+    const issueNames = dbRuleAgendas.findOne(agendaId).issues;
+    const issueVotedOptions = issueNames.map((issueName) => {
+      return $(`input[name="${issueName}"]:checked`).length;
     });
-    let isMissingIssue = false;
-    for (let i in issueNames) {
-      if ($('input[name="' + issueNames[i] + '"]:checked').length < 1) {
-        isMissingIssue = true;
-        break;
-      }
-    }
-
-
+    const isMissingIssue = issueVotedOptions.some(function(length) {
+      return length === 0;
+    });
     const model = {
       agendaId: agendaId,
       options: voteOptions
     };
-    const message = '投票送出後不可再修改與重新投票，確認是否送出？';
-    const alertMessage = '發現仍有未選擇的議題，確認放棄該題之投票權？';
-	
-    if (isMissingIssue) {
-      alertDialog.confirm({
-        message: alertMessage,
-        callback: (result) => {
-          if (result) {
-            alertDialog.confirm({
-              message,
-              callback: (result) => {
-                if (result) {
-                  Meteor.customCall('voteAgenda', model, function(error) {
-                    if (! error) {
-                      const path = FlowRouter.path('ruleAgendaDetail', { agendaId });
-                      FlowRouter.go(path);
-                    }
-                  });
-                }
-              }
-            });
-          }
+
+    alertDialog.confirm({
+      message: '投票送出後不可再修改與重新投票，確認是否送出？',
+      callback: (result) => {
+        if (! result) {
+          return;
         }
-      });
-    }
-    else {
-      alertDialog.confirm({
-        message,
-        callback: (result) => {
-          if (result) {
-            Meteor.customCall('voteAgenda', model, function(error) {
-              if (! error) {
-                const path = FlowRouter.path('ruleAgendaDetail', { agendaId });
-                FlowRouter.go(path);
+        if (isMissingIssue) {
+          alertDialog.confirm({
+            message: '發現仍有未選擇的議題，確認放棄該題之投票權？',
+            callback: (result) => {
+              if (! result) {
+                return;
               }
-            });
-          }
+              submitVote(model);
+            }
+          });
         }
-      });
-    }
+        else {
+          submitVote(model);
+        }
+      }
+    });
   }
 });
 
