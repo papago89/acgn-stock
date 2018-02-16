@@ -1,7 +1,7 @@
 {
   "public": {
     "debugMode": false,
-    "websiteName": "ACGN股票交易市場",
+    "websiteName": "ACGN股票交易市場測試看看",
     "intervalTimer": 60000,
     "releaseStocksForHighPriceMinCounter": 180,
     "releaseStocksForHighPriceMaxCounter": 360,
